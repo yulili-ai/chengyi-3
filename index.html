@@ -29,6 +29,8 @@
       <i class="brand-rule" aria-hidden="true"><b></b></i>
     </div>
     <div class="topbar-right">
+      <button class="link-btn" id="btn-account">登录</button>
+      <span class="sep" aria-hidden="true"></span>
       <button class="link-btn" id="btn-sound" aria-pressed="true">声音：开</button>
       <span class="sep" aria-hidden="true"></span>
       <button class="link-btn" id="btn-motion" aria-pressed="false">动态：完整</button>
@@ -196,6 +198,33 @@
       </div>
     </div>
   </section>
+
+  <dialog class="auth-dialog" id="auth-dialog">
+    <form method="dialog" class="auth-close-form">
+      <button class="auth-close" value="close" aria-label="关闭登录">×</button>
+    </form>
+    <div class="auth-body" id="auth-body">
+      <p class="dialog-kicker">承艺账号</p>
+      <h2 id="auth-title">登录并保存作品</h2>
+      <div id="auth-email-step">
+        <label for="auth-email">邮箱</label>
+        <input id="auth-email" type="email" autocomplete="email" maxlength="320" placeholder="name@example.com">
+        <button class="pill-btn pill-strong" id="auth-send">发送验证码</button>
+      </div>
+      <div id="auth-code-step" hidden>
+        <label for="auth-code">验证码</label>
+        <input id="auth-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 位数字">
+        <button class="pill-btn pill-strong" id="auth-verify">登录并恢复作品</button>
+        <button class="link-btn" id="auth-back">更换邮箱</button>
+      </div>
+      <p class="auth-message" id="auth-message" role="status"></p>
+      <div class="auth-projects" id="auth-projects" hidden>
+        <p class="dialog-kicker">我的作品</p>
+        <div id="auth-project-list"></div>
+      </div>
+      <button class="link-btn auth-logout" id="auth-logout" hidden>退出登录</button>
+    </div>
+  </dialog>
 
   <div class="veil" id="veil" aria-hidden="true"></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

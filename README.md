@@ -150,3 +150,16 @@ server/               后台：FastAPI + SQLite，Dify Agent、语音、工作�
 - 旁白文稿和音频；环境声
 - 视频模型生成的篇章过场（见 `docs/视频模型分镜.md`）
 - 真实的 AI 后台、账号与云端作品、个人场馆、公开分享链接
+
+## 开发版账号登录
+
+当前功能分支正在增加邮箱验证码登录和账号作品归属。开发环境不需要模型 Key：
+
+- `POST /api/v1/auth/email/request`：申请 6 位验证码，开发环境响应中会包含 `development_code`
+- `POST /api/v1/auth/email/verify`：验证验证码并登录，可同时提交游客作品迁移信息
+- `GET /api/v1/auth/me`：读取当前登录账号
+- `GET /api/v1/pottery/projects`：读取当前账号拥有的陶瓷作品
+- `POST /api/v1/auth/logout`：退出登录
+
+正式环境不会返回验证码。真实邮件发送仍需单独配置 SMTP，本阶段尚未接入真实邮件。
+网页右上角已接入登录入口，登录后可恢复账号作品并退出登录。

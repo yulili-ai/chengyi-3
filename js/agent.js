@@ -56,9 +56,15 @@ function setBusy(v) {
 
 // ---------- 后台接口 ----------
 async function api(path, body, signal) {
+  let accountToken = '';
+  try { accountToken = localStorage.getItem('chengyi3-account-token') || ''; } catch {}
   const res = await fetch(API + path, {
     method: body === undefined ? 'GET' : 'POST',
-    headers: { 'Content-Type': 'application/json', ...(credentials ? { 'X-Session-Token': credentials.token } : {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(credentials ? { 'X-Session-Token': credentials.token } : {}),
+      ...(accountToken ? { Authorization: 'Bearer ' + accountToken } : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
@@ -97,7 +103,27 @@ async function connect() {
   try {
     try { credentials = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch { credentials = null; }
     let value;
-    if (credentials) {
+    let accountToken = '';
+    try { accountToken = localStorage.getItem('chengyi3-account-token') || ''; } catch {}
+    if (accountToken) {
+      let accountProjectId = '';
+      try {
+        accountProjectId = sessionStorage.getItem('chengyi3-account-project') || '';
+        sessionStorage.removeItem('chengyi3-account-project');
+      } catch {}
+      if (!accountProjectId) {
+        const items = await api('/pottery/projects');
+        accountProjectId = items[0]?.id || '';
+      }
+      if (accountProjectId) {
+        try { value = await api('/workbenches/' + accountProjectId); } catch (e) {
+          if (![404, 410, 401, 422].includes(e.status)) throw e;
+        }
+      }
+      if (!value) credentials = null;
+      else credentials = { token: '' };
+    }
+    if (!value && credentials) {
       try { value = await api('/workbenches/' + credentials.id); } catch (e) {
         if (![404, 410, 401, 422].includes(e.status)) throw e;
         credentials = null;

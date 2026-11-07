@@ -29,42 +29,49 @@ def install(app, static, db_session, ok, rate_limit):
         return ok(request, service.create(db, payload, app.state.settings))
 
     @app.get(base + "/{project_id}", tags=["陶艺工作台"])
-    def read(project_id: UUID, request: Request, x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
-        return ok(request, service.current(db, service.authenticate(db, str(project_id), x_session_token)))
+    def read(project_id: UUID, request: Request, x_session_token: str = Header(default=""),
+             authorization: str = Header(default="", alias="Authorization"), db: Session = Depends(db_session)):
+        return ok(request, service.current(db, service.authenticate(db, str(project_id), x_session_token, authorization, app.state.settings)))
 
     @app.post(base + "/{project_id}/sync", tags=["陶艺工作台"])
-    def sync(project_id: UUID, payload: SyncWorkbench, request: Request, x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
+    def sync(project_id: UUID, payload: SyncWorkbench, request: Request, x_session_token: str = Header(default=""),
+             authorization: str = Header(default="", alias="Authorization"), db: Session = Depends(db_session)):
         rate_limit(request, "workbench-sync", 180)
-        return ok(request, service.sync(db, service.authenticate(db, str(project_id), x_session_token), payload))
+        return ok(request, service.sync(db, service.authenticate(db, str(project_id), x_session_token, authorization, app.state.settings), payload))
 
     @app.post(base + "/{project_id}/cancel", tags=["陶艺工作台"])
-    def cancel(project_id: UUID, request: Request, x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
+    def cancel(project_id: UUID, request: Request, x_session_token: str = Header(default=""),
+               authorization: str = Header(default="", alias="Authorization"), db: Session = Depends(db_session)):
         rate_limit(request, "workbench-cancel", 120)
-        return ok(request, service.cancel(db, service.authenticate(db, str(project_id), x_session_token)))
+        return ok(request, service.cancel(db, service.authenticate(db, str(project_id), x_session_token, authorization, app.state.settings)))
 
     @app.post(base + "/{project_id}/commands", tags=["陶艺工作台"])
     async def command(project_id: UUID, payload: WorkbenchRequest, request: Request,
-                      x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
+                      x_session_token: str = Header(default=""),
+                      authorization: str = Header(default="", alias="Authorization"), db: Session = Depends(db_session)):
         rate_limit(request, "workbench-command", 60)
-        project = service.authenticate(db, str(project_id), x_session_token)
+        project = service.authenticate(db, str(project_id), x_session_token, authorization, app.state.settings)
         return ok(request, await service.plan(db, project, payload, app.state, request.state.request_id))
 
     @app.post(base + "/{project_id}/tools/{tool_name}", tags=["陶艺工作台"])
     def tool(project_id: UUID, tool_name: str, payload: ToolRequest, request: Request,
-             x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
+             x_session_token: str = Header(default=""),
+             authorization: str = Header(default="", alias="Authorization"), db: Session = Depends(db_session)):
         rate_limit(request, "workbench-tool", 90)
-        return ok(request, service.tool(db, service.authenticate(db, str(project_id), x_session_token), tool_name, payload))
+        return ok(request, service.tool(db, service.authenticate(db, str(project_id), x_session_token, authorization, app.state.settings), tool_name, payload))
 
     @app.post(base + "/{project_id}/commands/{command_id}/receipt", tags=["陶艺工作台"])
     def receipt(project_id: UUID, command_id: UUID, payload: WorkbenchReceipt, request: Request,
-                x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
-        return ok(request, service.receive(db, service.authenticate(db, str(project_id), x_session_token), command_id, payload))
+                x_session_token: str = Header(default=""),
+                authorization: str = Header(default="", alias="Authorization"), db: Session = Depends(db_session)):
+        return ok(request, service.receive(db, service.authenticate(db, str(project_id), x_session_token, authorization, app.state.settings), command_id, payload))
 
     @app.post(base + "/{project_id}/speech", tags=["陶艺工作台"])
     def speak(project_id: UUID, payload: SpeakRequest, request: Request,
-              x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
+              x_session_token: str = Header(default=""),
+              authorization: str = Header(default="", alias="Authorization"), db: Session = Depends(db_session)):
         rate_limit(request, "workbench-speech", 40)
-        project = service.authenticate(db, str(project_id), x_session_token)
+        project = service.authenticate(db, str(project_id), x_session_token, authorization, app.state.settings)
         text = service.speech_text(db, project, payload.command_id)
         current = app.state.settings
         if not current.speech_enabled:

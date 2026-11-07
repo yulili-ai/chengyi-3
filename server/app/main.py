@@ -21,7 +21,7 @@ from app.config import Settings
 from app.content import get_item, item_dict, save_item
 from app.db import build_database
 from app.conversation import authenticate_session, create_session, execute_interaction, prepare_interaction, session_dict
-from app.models import HeritageItem
+from app.models import HeritageItem, PotteryProject
 from app.model_config import model_status, save_model_config
 from app.llm import ModelUnavailable, stream_model
 from app.speech import SpeechUnavailable, save_speech_config, speech_status, synthesize
@@ -32,10 +32,12 @@ from app.schemas import (Envelope, HealthOutput, InteractionInput, ItemAdmin, It
                          ItemPage, ItemPublic, LoginInput, LoginOutput, ModelConfigInput,
                          ModelProbe, ModelStatus, Reply, SessionCreated, SessionInput, SessionState,
                          SpeechConfigInput, SpeechStatus, SpeechProbe, VoiceTranscription,
-                         UICancelInput, UIContextInput, UIPlanInput, UIPlanResult, UIReceiptInput, UIReceiptResult, UIState)
+                         UICancelInput, UIContextInput, UIPlanInput, UIPlanResult, UIReceiptInput, UIReceiptResult, UIState,
+                         EmailCodeRequest, EmailCodeVerify)
 from app.security import RateLimiter, check_password, require_admin, signer
 from app.seed import seed_demo
 from app.workbench_routes import install as install_workbench
+from app.auth import authenticate_user, logout_user, request_email_code, verify_email_code
 
 log = logging.getLogger("heritage")
 STATIC = Path(__file__).parent / "static"
@@ -304,6 +306,42 @@ def create_app(settings: Settings | None = None, model_transport=None, configura
                 yield "event: " + event["event"] + "\ndata: " + json.dumps(event["data"], ensure_ascii=False) + "\n\n"
         return StreamingResponse(events(), media_type="text/event-stream", headers={
             "Cache-Control": "no-cache, no-store", "X-Accel-Buffering": "no"})
+
+    @app.post(PREFIX + "/auth/email/request", tags=["账号登录"])
+    def request_login_code(payload: EmailCodeRequest, request: Request, db: Session = Depends(db_session)):
+        rate_limit(request, "email-code-request", 5)
+        return ok(request, request_email_code(db, payload.email, settings))
+
+    @app.post(PREFIX + "/auth/email/verify", tags=["账号登录"])
+    def verify_login_code(payload: EmailCodeVerify, request: Request, db: Session = Depends(db_session)):
+        rate_limit(request, "email-code-verify", 20)
+        return ok(request, verify_email_code(db, payload, settings))
+
+    @app.get(PREFIX + "/auth/me", tags=["账号登录"])
+    def current_user(request: Request, authorization: str = Header(default="", alias="Authorization"),
+                     db: Session = Depends(db_session)):
+        user, _ = authenticate_user(db, authorization, settings)
+        return ok(request, {"id": user.id, "email": user.email})
+
+    @app.post(PREFIX + "/auth/logout", tags=["账号登录"])
+    def logout(request: Request, authorization: str = Header(default="", alias="Authorization"),
+               db: Session = Depends(db_session)):
+        logout_user(db, authorization, settings)
+        return ok(request, {"logged_out": True})
+
+    @app.get(PREFIX + "/pottery/projects", tags=["陶艺工作台"])
+    def user_pottery_projects(request: Request, authorization: str = Header(default="", alias="Authorization"),
+                              db: Session = Depends(db_session)):
+        user, _ = authenticate_user(db, authorization, settings)
+        projects = db.scalars(
+            select(PotteryProject).where(PotteryProject.owner_user_id == user.id).order_by(PotteryProject.updated_at.desc())
+        ).all()
+        return ok(request, [{
+            "id": project.id,
+            "name": project.document.get("name", ""),
+            "revision": project.revision,
+            "updated_at": project.updated_at.isoformat() + "Z",
+        } for project in projects])
 
     @app.post(PREFIX + "/admin/login", tags=["管理登录"], response_model=Envelope[LoginOutput])
     def login(payload: LoginInput, request: Request):

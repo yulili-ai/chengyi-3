@@ -168,6 +168,21 @@ class LoginOutput(BaseModel):
     expires_in: int
 
 
+class EmailCodeRequest(InputModel):
+    email: str = Field(min_length=3, max_length=320, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class GuestProjectMigration(InputModel):
+    project_id: str = Field(min_length=36, max_length=36)
+    session_token: str = Field(min_length=20, max_length=300)
+
+
+class EmailCodeVerify(InputModel):
+    email: str = Field(min_length=3, max_length=320, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+    guest_projects: list[GuestProjectMigration] = Field(default_factory=list, max_length=20)
+
+
 class HealthOutput(BaseModel):
     status: str
     version: str

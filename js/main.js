@@ -5,6 +5,7 @@ import { prologue } from './prologue.js';
 import { map } from './map.js';
 import { closeup } from './closeup.js';
 import { chapter } from './chapter.js';
+import { initAuth } from './auth.js';
 
 const appEl = $('#app');
 const sceneEls = {
@@ -99,6 +100,7 @@ export const app = {
 // 顶部控件
 $('#btn-sound').addEventListener('click', () => { app.setMuted(!app.muted); if (!app.muted) sound.unlock(); });
 $('#btn-motion').addEventListener('click', () => app.setReduced(!app.reduced));
+initAuth(app);
 // 重播序章：回到序章初始状态，不清除工作台草稿
 $('#btn-replay').addEventListener('click', () => app.go('prologue', { force: true }));
 

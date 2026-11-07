@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import StaleDataError
 
 from app.conversation import authenticate_session, create_session
+from app.auth import authenticate_user
 from app.llm import ModelUnavailable, stream_model
 from app.models import PotteryCommand, PotteryProject, ModelCall, utcnow
 from app.pottery import apply_batch, measurements
@@ -65,11 +66,16 @@ def create(db, payload, settings):
     return {"project": project_dict(project), **visitor}
 
 
-def authenticate(db, ident, token):
+def authenticate(db, ident, token, authorization="", settings=None):
     project = db.get(PotteryProject, ident)
     if not project:
         raise HTTPException(404, "工作台不存在或凭证无效")
-    authenticate_session(db, project.session_id, token)
+    if authorization.startswith("Bearer "):
+        user, _ = authenticate_user(db, authorization, settings)
+        if project.owner_user_id != user.id:
+            raise HTTPException(404, "工作台不存在或无权访问")
+    else:
+        authenticate_session(db, project.session_id, token)
     # Upgrade old JSON documents lazily; no schema migration or destructive reset is needed.
     document = Document.model_validate(project.document).model_dump()
     undo = [Document.model_validate(value).model_dump() for value in project.undo]
