@@ -1,5 +1,8 @@
 import hashlib
 import secrets
+import smtplib
+import ssl
+from email.message import EmailMessage
 from datetime import timedelta
 
 from fastapi import HTTPException, Request
@@ -12,6 +15,23 @@ from app.models import AuthSession, EmailVerificationCode, PotteryProject, User,
 
 def hash_secret(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def send_verification_email(email: str, code: str, settings):
+    if not settings.smtp_username.strip() or not settings.smtp_password.get_secret_value():
+        raise HTTPException(422, "QQ 邮箱 SMTP 尚未配置，请先填写邮箱和授权码")
+    message = EmailMessage()
+    message["Subject"] = "承艺登录验证码"
+    message["From"] = settings.smtp_from.strip() or settings.smtp_username.strip()
+    message["To"] = email
+    message.set_content(f"你的承艺登录验证码是：{code}\n验证码 10 分钟内有效，请勿转发给他人。")
+    context = ssl.create_default_context()
+    try:
+        with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, context=context, timeout=15) as smtp:
+            smtp.login(settings.smtp_username.strip(), settings.smtp_password.get_secret_value())
+            smtp.send_message(message)
+    except (smtplib.SMTPException, OSError, ssl.SSLError):
+        raise HTTPException(502, "验证码邮件暂时发送失败，请稍后重试") from None
 
 
 def request_email_code(db, email: str, settings):
@@ -31,7 +51,9 @@ def request_email_code(db, email: str, settings):
     db.add(record)
     db.commit()
     result = {"expires_in": 600}
-    if settings.environment == "development":
+    if settings.smtp_enabled:
+        send_verification_email(email, code, settings)
+    elif settings.environment == "development":
         result["development_code"] = code
     return result
 

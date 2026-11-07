@@ -1,5 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
+from types import SimpleNamespace
+from unittest.mock import MagicMock, Mock
 
 from app.config import Settings
 from app.db import Base
@@ -92,3 +94,25 @@ def test_wrong_code_and_logout(client):
     headers = {"Authorization": "Bearer " + login_response.json()["data"]["access_token"]}
     assert client.post("/api/v1/auth/logout", headers=headers).status_code == 200
     assert client.get("/api/v1/auth/me", headers=headers).status_code == 401
+
+
+def test_smtp_sender_does_not_log_credentials(monkeypatch):
+    from app.auth import send_verification_email
+
+    smtp = Mock()
+    smtp_instance = MagicMock()
+    smtp_instance.__enter__ = Mock(return_value=smtp)
+    smtp_instance.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr("app.auth.smtplib.SMTP_SSL", Mock(return_value=smtp_instance))
+
+    settings = SimpleNamespace(
+        smtp_username="maker@qq.com",
+        smtp_password=SimpleNamespace(get_secret_value=lambda: "secret-code"),
+        smtp_from="maker@qq.com",
+        smtp_host="smtp.qq.com",
+        smtp_port=465,
+    )
+    send_verification_email("friend@example.com", "123456", settings)
+
+    smtp.login.assert_called_once_with("maker@qq.com", "secret-code")
+    smtp.send_message.assert_called_once()

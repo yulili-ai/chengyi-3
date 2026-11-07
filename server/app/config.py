@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     speech_voice: Literal["alex", "benjamin", "charles", "david", "anna", "bella"] = "anna"
     speech_timeout_seconds: float = Field(default=45, ge=1, le=180)
     session_ttl_hours: int = Field(default=24, ge=1, le=168)
+    smtp_enabled: bool = False
+    smtp_host: str = "smtp.qq.com"
+    smtp_port: int = Field(default=465, ge=1, le=65535)
+    smtp_username: str = ""
+    smtp_password: SecretStr = SecretStr("")
+    smtp_from: str = ""
 
     @model_validator(mode="after")
     def validate_configuration(self):
@@ -45,6 +51,8 @@ class Settings(BaseSettings):
                 raise ValueError("live 模式需要模型 Key、接口地址和模型名称")
         if self.speech_enabled and not self.speech_api_key.get_secret_value():
             raise ValueError("启用声音需要填写硅基流动 API Key")
+        if self.smtp_enabled and (not self.smtp_username.strip() or not self.smtp_password.get_secret_value()):
+            raise ValueError("启用 SMTP 登录需要填写 SMTP_USERNAME 和 SMTP_PASSWORD")
         if self.environment == "production" and self.seed_demo_data:
             raise ValueError("正式环境请关闭 SEED_DEMO_DATA")
         return self

@@ -161,5 +161,6 @@ server/               后台：FastAPI + SQLite，Dify Agent、语音、工作�
 - `GET /api/v1/pottery/projects`：读取当前账号拥有的陶瓷作品
 - `POST /api/v1/auth/logout`：退出登录
 
-正式环境不会返回验证码。真实邮件发送仍需单独配置 SMTP，本阶段尚未接入真实邮件。
+正式环境不会返回验证码。QQ 邮箱真实邮件发送已接入，默认关闭，未配置时继续返回开发验证码。
 网页右上角已接入登录入口，登录后可恢复账号作品并退出登录。
+真实 QQ 邮箱验证码需要在 `server/.env` 中设置 `SMTP_ENABLED=true`、QQ 邮箱地址和 SMTP 授权码。
